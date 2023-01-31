@@ -1,0 +1,33 @@
+#pragma once
+#include <thread>
+#include <vector>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <functional>
+
+class ThreadPool {
+public:
+    ThreadPool(int numThreads);
+
+    ~ThreadPool();
+
+    template <class F> void enqueue(F&& f);
+
+private:
+    std::vector<std::thread> workers;
+    std::queue<std::function<void()>> tasks;
+    std::mutex queueMutex;
+    std::condition_variable condition;
+    bool stop;
+};
+
+template<class F>
+inline void ThreadPool::enqueue(F&& f)
+{
+    {
+        std::unique_lock<std::mutex> lock(queueMutex);
+        tasks.emplace(std::forward<F>(f));
+    }
+    condition.notify_one();
+}
